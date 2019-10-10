@@ -1,0 +1,398 @@
+---
+title: "Mini-projet MDI220"
+author: "Christophe Vuong"
+date: "Octobre 2018"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r}
+#Implantation d'une graine pour fixer les "nombres aléatoires générés"
+set.seed(1,kind="Marsaglia-Multicarry")
+```
+
+__Remarque :__
+La fonction quantile de manière générale sera définie pour une variable aléatoire X de fonction de répartition F comme :
+$$F^{-1}(q) = inf\{x:F(x) \geq q\} $$
+
+
+## Exercice 1 : 
+
+
+**1. Extraction des données**
+```{r}
+#lecture des données téléchagées
+data <- read.csv("./NuclearPowerAccidents2016.csv")
+#filtre pour ne garder que les lignes qui ont des données de coûts
+data <- data[complete.cases(data[3]),]
+#filtre selon la date de l'accident de Three Mile Island 
+data <- subset(data, as.Date(Date,"%m/%d/%Y") < as.Date("3/28/1979","%m/%d/%Y"))
+data <- data[3]
+```
+
+**2. Construction d'un QQ-plot**
+
+(a) Soit F la fonction de répartition d'une loi normale $\mathcal{N}(\mu,\sigma^2)$, F est continue strictement croissante, donc par le théorème de la bijection, on peut définir 
+$$F^{-1}:[0,1] \times \mathbb{R} \times \mathbb{R}_{+} \longmapsto \mathbb{R}$$
+$$\quad (p,\mu,\sigma^2) \qquad  \longmapsto x$$
+On pourra définir une fonction équivalente à $\mu$ et $\sigma$ fixé noté $F_a$ tel que $F_a^{-1}(p) = F^{-1}(p,\mu,\sigma)$. 
+
+
+Soit $p \in ]0,1[$ 
+$$F_a(\mu + \sqrt{\sigma^2}F^{-1}(p,0,1)) = F_a(\mu + \sqrt{\sigma^2}z)$$
+où z est un réel tel que pour Z suivant une loi normale$\mathcal{N}(0,1)$, $\mathbb{P}(Z<z) = p$
+Par un changement de variable, on se remène à une une variable aléatoire $X$ suivant une loi normale $\mathcal{N}(\mu,\sigma^2)$, soit : 
+$$F_a(\mu + \sqrt{\sigma^2}F^{-1}(p,0,1)) = F_a(x) = p$$
+D'où, en prenant la fonction inverse, on a :
+$$\forall p \in ]0,1[ \quad F^{-1}(p,\mu,\sigma) = \mu + \sqrt{\sigma^2}F^{-1}(p,0,1)$$
+(b) 
+
+```{r}
+n = length(data[,1])
+c = seq(1/2/n,(2*n-1)/2/n,1/n)
+q = qnorm(c,mean = 0,sd = 1)
+data2 = data[order(data[,1]),1]
+plot(q,data2,main = "Mon QQ-plot pour la loi normale",xlab = "Quantiles théoriques",ylab = "Quantiles des données")
+a = (data2[42] - data2[14])/(q[42] - q[14])
+b = data2[42] - a*q[42]
+a
+b
+y = a*q + b
+lines(q,y,col="green")  ###ligne verte droite de régression
+```
+
+(c)
+
+```{r}
+qqnorm(data2, main = "Q-Q Plot",xlab = "Quantiles théoriques", ylab = "Quantiles des échantillons",
+plot.it = TRUE, datax = FALSE)
+qqline(y, datax = FALSE, distribution = qnorm,
+probs = c(0.25, 0.75))
+
+```
+
+
+
+(d) La modélisation semble moyenne en tout cas pour des valeurs faibles de la variable $X$, mais au-delà de la valeur 1, la droite de régression s'éloigne beaucoup des points, en particulier autour de la valeur en abscisse 2.
+
+*3.* (a) Pour une loi exponentielle de paramètre $\lambda$, soit $p \in (0,1)$, la fonction de répartion admet aussi un inverse. Montrons alors que : $\lambda = F(\frac{1}{\lambda}F^{-1}(p,1))$
+
+Soit $X$ suivant une loi exponentielle de paramètre 1.
+$$F(\frac{1}{\lambda}F^{-1}(p,1)) = F(\frac{1}{\lambda}x,\lambda)$$
+
+où x est tel que $\mathbb{P}(X < x) = p$
+
+Soit $Y$ suivant une loi de paramètre $\lambda$ tel que :
+
+$$F(\frac{1}{\lambda}F^{-1}(p,1)) = \mathbb{P}(Y <\frac{1}{\lambda}x)$$
+$$F(\frac{1}{\lambda}F^{-1}(p,1))= 1 - exp(-\lambda/\lambda x) \\
+F(\frac{1}{\lambda}F^{-1}(p,1)) = 1 - exp(-x) = p$$
+
+on peut donc conclure que : 
+
+$$F^{-1}(p,\lambda) = \frac{1}{\lambda}F^{-1}(p,1)$$
+
+
+```{r}
+n = 55
+c = seq(1/2/n,(2*n-1)/2/n,1/n)
+data2 = data2[order(data2,decreasing = TRUE)]
+q = exp(-c)
+plot(q,data2,main = "Mon QQ-plot pour la loi exponentielle",xlab = "Quantiles théoriques",ylab = "Quantiles des données")
+a = (data2[42] - data2[14])/(q[42] - q[14])
+b = data2[42] - a*q[42]
+a
+b
+y = a*q + b
+lines(q,y,col="red")  ###ligne rouge droite de régression
+```
+(c) 
+
+```{r}
+y = numeric(n)
+plot(data2,y)
+```
+
+(d)
+
+```{r}
+hist(data2, probability=TRUE,breaks=20,main = "Histogramme des données des accidents",xlab = "Coûts des accidents")
+NX = seq(min(data2),max(data2),length.out=80000) 
+s = sum(data2)
+NY = n/s*exp(-NX*n/s) 
+lines(x=NX,y=NY,col="blue")
+```
+
+(e) 
+
+##### _Conclusion :_ Le modèle a l'air meilleur, au sens que la droite de régression colle mieux en supposant un modèle exponentiel. L'histogramme va dans ce sens. En revanche, le modèle gaussien présente l'avantage de donner un degré de liberté supplémentaire qui permet d'avoir une dépendance affine par rapport à une loi centrée réduite. Comme, les données ont une dépendance affine avec un coefficient constant élevé, des quantiles d'une loi exponentielle de paramètre 1, la modélisation par une loi normale donne un écart moins important en terme de modélisation. Il y aurait peut-être un compromis entre les 2 modélisations.  
+
+## Exercice 2 (Estimation ponctuelle des paramètres d'une loi exponentielle)
+
+**1.** L'estimateur est sans biais par iid des variables $X_i$, étant donné que $\mathbb{E}(T_1(X)) = \frac{1}{\lambda}$. Par indépendance des $X_i$ :
+
+$$Var_{\lambda}(T_1(X)) = \frac{1}{n} Var_{\lambda}(X_1)  = \frac{1}{n\lambda^2} < \infty $$
+
+
+Comme le modèle est régulier, on peut définir la quantité d'information de Fisher avec $p(x,\lambda) = \lambda e^{-\lambda x}$ la densité d'un vecteur aléatoire de variables indépendantes suivant une loi exponentielle $\mathcal{E}(\lambda)$ :
+$$
+\begin{array}{lcl}
+I(\lambda) &=& n \left[Var_{\lambda} \:\{\frac{\partial\:log\:p_1}{\partial\lambda} (X_{1},\lambda) \} + \mathbb{E}_{\lambda}\{\frac{\partial\:log\:p_1}{\partial\lambda} (X_{1},\lambda) \}^{2} \right]
+\\
+&=& n Var_{\lambda}(X_1) + n\mathbb{E}_\lambda [\frac{1}{\lambda} - X_1] \\
+&=& n Var_{\lambda}(X_1) \\
+&=&\frac{n}{\lambda^2}
+\end{array}
+$$
+où $p_1$ est la densité d'une loi exponentielle avec les notations définies dans l'exercice précédent.
+
+Soit $g:\lambda \longmapsto \frac{1}{\lambda}$, d'après le théorème de Cramér Rao, pour toute statistique $S$ estimateur sans biais de $\frac{1}{\lambda}$, la variance de celle-ci vérifie, et en particulier $T_1$ :
+$$Var_\lambda(S(X)) \geq \frac{1}{\lambda^4 I(\lambda)} = \frac{1}{n\lambda^2} = Var_\lambda (T_1(X))$$
+**Donc la statistique $T_1(X)$ est un estimateur UVMB.**
+
+**2.** Soit $\alpha > 0$, par la décomposition biais variance du risque quadratique, $$R(\lambda,\tilde{T}_{1,\alpha}) = \alpha^2 Var_\lambda (T_1(X)) + (\alpha - 1) ^2\frac{1}{\lambda^2} = ((\frac{1}{n} + 1)\alpha^2 - 2\alpha + 1) \frac{1}{\lambda ^2}$$
+
+Soit l'équation $(n+1)x^2 - 2nx + n - 1< 0$, $\alpha$ appartient à l'ensemble : $\mathcal{S} = ]\frac{n-1}{n+1},1[$
+
+Ce résultat ne semble pas en contradiction avec le résultat précédent, car l'estimateur précédent est seulement le meilleur en terme de risque parmi les estimateurs sans biais.
+
+**3.** Par la méthode des moments, un estimateur naturel de $\mathbb{E}_\lambda (\varphi(X)) $  est 
+$$\hat{\Phi_n} = \frac{log(2)}{n} \sum _{i=1}^{n} X_i$$
+
+On ne peut pas dire que le risque quadratique de $T_2$ est inférieur pour tout $\lambda$ comme un estimateur de $g_1$ puisque $log(2) \not\in ]54/56,1[$, donc d'après la question 2, pour tout $\lambda > 0$ il n'existe pas d'estimateur dont le risque est inférieur, vu que la taille de l'échantillon est trop petite pour que la médiane et l'espérance se confonde.
+
+**4.** 
+```{r}
+#l'estimateur donné T1
+t1 = sum(data2)/n
+t1
+```
+
+
+Ici, $\hat{g_1} = 726.3364$.
+
+**5.** 
+
+```{r}
+#le second estimateur
+t2 = log(2)*t1
+t2
+#la différence par rapport à la médiane
+ecart = t2 - data2[n/2 - 1] ### car les données sont classés dans l'ordre décroissant
+ecart
+```
+A priori l'estimateur obtenu ainsi est très mauvais en utilisant toutes les données pour approcher $g_2$, certainement dû à des outliers dont la valeur est très élevée.
+
+**6.** On utilise la formule de risque que l'on a explicité précédemment.
+
+```{r}
+Ny = (1:n)
+Y1 = t1**2/Ny
+Y2 = ((1+1/Ny)*log(2)**2 - 2*log(2) + 1)*t1**2
+plot(Y1,type="l",xlab="N",ylab="Risque quadratique",col = "red")
+lines(Y2,type="l",col="blue") 
+### T2 en bleu, T1 en rouge, droite asymptotique en violet
+abline(h = (log(2) - 1)**2*t1**2,col = "purple")
+legend(40, 4*10**5, legend=c("Estimateur 1", "Estimateur 2","Asymptote"),
+       col=c("red", "blue","purple"), lty=1:2, cex=0.8)
+```
+
+
+##### _Conclusion :_ On observe que $T_2$ estime mieux $g_1$ que $T_1$ pour des petites valeurs de N. Mais il semblerait qu'asymptotiquement, $T_1$ estime mieux $T_2$ vu que le risque de $T_2$ par rapport à la valeur $g_1$ est supérieur à $\left(\frac{\alpha - 1}{\lambda}\right)^2$
+
+
+
+
+## Exercice 3 (Test sur le paramètre d'une loi):
+
+
+**1.** Soit la fonction caractéristique d'une loi exponentielle de paramètre $\lambda$ , $\phi^{X_i}(t) = (1 - \frac{it}{\lambda})^{-1}$.
+
+Par iid des $X_i$, 
+$$\phi^{T(X)}(t) = \prod_{i=1}^{n} \phi^{X_i}(t) = (1 - \frac{it}{\lambda})^{-n} $$
+Comme la fonction caractéristique définit la loi, $T(X) \sim \Gamma(n,\lambda)$, en prenant une convention différente de l'énoncé.
+
+__Construction de la règle de décision pour le test au niveau $\alpha$__
+
+$\Theta_0 = \{\lambda_0\}\:,\quad \Theta_1 = ]\lambda_0, +\infty]$
+
+Le modèle statistique est donc dominé par la mesure de Lebesgue sur $\mathbb{R}^n$. Fixons $(\lambda,\lambda') \in \mathbb{R}_{+}$ tel que : $\lambda' > \lambda$, le rapport de vraisemblance vaut pour $p_{\lambda}$ et $p_{\lambda'}$ les densités respectives par rapport à la mesure de référence.$\forall\: x \in \{x \in \mathbb{R}^n : p_\lambda(x) > 0 \: ou \: p_{\lambda'}(x) \}$
+$$Z_{\lambda,\lambda'}\:(x) = \frac{p_{\lambda'(x)}}{p_{\lambda(x)}}\\
+Z_{\lambda,\lambda'}(x)\: = \left(\frac{\lambda'}{\lambda}\right)^n e^{(\lambda - \lambda')\sum_\limits{i=1}^{n}x_i}\\
+Z_{\lambda,\lambda'}(x)\: = \tilde{Z}_{\lambda,\lambda'}(-T(x))$$
+
+où 
+$$
+\begin{array}{lcl}
+\tilde{Z}_{\lambda,\lambda'} :\mathbb{R} &\rightarrow& \mathbb{R} \\ \quad x &\longmapsto& \left(\frac{\lambda'}{\lambda}\right)^n e^{-(\lambda - \lambda')x}
+\end{array}$$ est une fonction strictement croissante.
+
+Alors l'hypothèse (MON) est vérifiée et permet d'appliquer le théorème pour se ramener à un test de Neyman-Pearson.
+
+On cherche $\hat{c}$ puisqu'il y a un seul $\lambda$ possible pour $H_0$ : 
+$$\mathbb{P}_{\lambda_0}(-T(X) > \hat{c}) = \alpha$$
+, ce qui revient à écrire : 
+$$\mathbb{P}_{\lambda_0}(T(X) \leq -\hat{c}) = \alpha$$
+,ce qui équivaut à écrire que l'on recherche $c$ pour lequel en ayant $Y \sim Gamma(n,1/\lambda_0)$: 
+
+$$F(c,n,\frac{1}{\lambda_0}) = \alpha \in [0,1]$$
+Un tel $c$ existe par monotomie de la la fonction de la fonction de répartition. On l'appellera $c_0$. Posons la règle de décision suivante :
+
+$$\delta^{*}(x) = \mathbb{1}_{(T(x) \leq c_{0})}$$
+
+D'après le théorème 5.5.2, **ce test d'hypothèse est uniformément plus puissant de niveau $\alpha$.**
+
+**2.** Calculons d'abord $c_0$ :
+
+```{r}
+alpha = 0.05
+lambda0 = 0.001
+c0 = qgamma(alpha,n, scale = 1/lambda0)
+#le quantile associé
+print(paste("La valeur du seuil de rejet est : ",c0))
+#s la somme des valeurs des échantillons
+s = n*t1 
+s
+
+if (s <= c0) {
+  print("L'hypothèse H0 est rejetée sous la modélisation par une loi Gamma")
+} else {
+  print("L'hypothèse H0 est acceptée sous la modélisation par une loi Gamma")
+}
+```
+
+D'après ce résultat, **on peut affirmer le fait que le coût moyen d'accident est inférieur à un milliard de dollards selon la modélisation.**
+
+Au vue de la valeur de $\sum\limits_{i=1}^{n} x_i$ et du seuil de rejet, il faut comme ceci :
+
+$$p_v = P_{\lambda_0}(T(X) \leq \sum_{i=1}^{n}x_i) $$
+
+_Calculons la p-valeur :_
+
+
+```{r}
+#fonction de répartition 
+p = pgamma(s,n,lambda0)
+print(paste("p-valeur = ",p))
+```
+Etant donné la valeur très faible de $p_v$, en ayant supposé que l'on soit sous l'hypothèse 0, il est très peu probabble d'avoir une valeur aussi extrême, donc par raisonnement par l'absurde il est probable que l'hypothèse 0 ne s'applique pas pour des valeurs aussi extrêmes. C'est un résultat qui tend à valider le rejet l'hypothèse 0 pour ce cas.
+
+**3.** 
+
+```{r}
+#Tracer la densité Gamma
+debut = 25000
+fin = 90000
+Abscisse = seq(debut, fin, length.out = 50)
+Densite_Gamma = dgamma(Abscisse, shape=50, scale=(1/lambda0))
+
+plot(Abscisse, Densite_Gamma, main = "Repésentation de la zone de rejet", type="l")
+
+#Creer les donnees pour la zone
+zone = seq(debut,c0, 50)
+cord.x <- c(debut,zone,c0) 
+cord.y <- c(0,dgamma(zone, shape=50, scale=(1/lambda0)),0) 
+#Ajouter la zone de rejet
+polygon(cord.x,cord.y,col='skyblue')
+```
+
+\
+
+**4.** On utilise _le théorème centrale limite_ pour donner une approximation de la loi T par une loi normale (convergence en loi) :
+$\mu = \mathbb{E}(X_1) = \frac{1}{\lambda}\:, \quad \sigma^2 = Var(X_1) = \frac{1}{\lambda^2}$, donc $$\frac{\sqrt{n}}{\sigma} \left(\frac{1}{n}T_{n}(X) - \mu \right) \rightarrow \hat{Z} \quad pour\: n \rightarrow + \infty   $$
+où $\hat{Z} \sim \mathcal{N}(0,1)$. Donc en première approximation, la variable $T(X) \sim \mathcal{N}(n\mu,n\sigma^2)$ .
+En effet, on teste ici en reprenant la modélisation d'une observation par une loi normale pour faire une double-vérification de la validité du rejet.
+
+**4.**(bis) On utilise donc ce résultat pour déterminer comme dans les questions précédentes les résultats du test.
+```{r}
+mu = n/lambda0
+var = n/lambda0**2
+c1 = qnorm(alpha,mean = mu, sd=sqrt(var))
+print(paste("La valeur du seuil de rejet sous une loi normale est : ", c1))
+s = n*t1
+if (s <= c1) {
+  print("L'hypothèse H0 est rejetée sous l'approximation d'une loi normale")
+} else {
+  print("L'hypothèse H0 est acceptée sous l'approximation d'une loi normale")
+}
+```
+
+```{r}
+#fonction de répartition 
+p = pnorm(s,mu,var)
+print(paste("p-valeur = ",p))
+```
+
+```{r}
+#Tracer la densité loi normale
+debut = 25000
+fin = 90000
+Abscisse = seq(debut, fin, length.out = 50)
+Densite_Norm = dnorm(Abscisse, mu, var)
+
+plot(Abscisse, Densite_Norm, main = "Repésentation de la zone de rejet", type="l")
+
+#Creer les donnees pour la zone
+zone = seq(debut,c1, 50)
+cord.x <- c(debut,zone,c0) 
+cord.y <- c(0,dnorm(zone, mu, var),0) 
+#Ajouter la zone de rejet
+polygon(cord.x,cord.y,col='skyblue')
+```
+
+L'approximation donne une valeur du seuil de rejet relativement proche du seuil trouvé pour la loi originale, malgré un relatif faible nombre d'échantillons.
+
+**5.** La fonction puissance est ici donnée par la formule suivante :
+$$\mathbb{P}(T(X) < c_0) = 1 - e^{-\lambda_0 c_0} \sum_{i = 0}^{n - 1}\frac{1}{i!}(\lambda_0 c_0)^{i} $$
+
+```{r}
+#le paramètre de forme de la fonction Gamma
+Nx = c(10, 50 ,100, 500 ,100000)
+#les couleurs de courbe selon la valeur du paramètre de forme
+colors = c("red","green","blue","yellow","purple")
+lambda = seq(0,3*lambda0,length.out = 50)
+for (i in 1:length(Nx)) {
+  P_gamma = pgamma(c0,Nx[i],scale = 1/lambda)
+  plot.window(c(0,3*lambda0), c(0,max(P_gamma)))
+  plot(lambda,P_gamma,type = "l", main = paste("Paramètre de forme : ",Nx[i]),col=colors[i])
+}
+
+```
+
+Comme la fonction puissance est croissante pour plusieurs valeurs de $N$, on a tendance à penser que la probabilité de ne pas se tromper en rejetant l'hypothèse 0 tend vers 1 pour des valeurs plus élevées de $\lambda$, ce qui renforce nos conclusions sur le rejet de l'hypothèse 0 comme un choix judicieux. Néanmoins, quand $N$ prend des valeurs très élevées, il faut certainement des valeurs de $\lambda$ plus élevées pour que la puissance atteigne un voisinage de 1.Donc l'hypothèse 0 est encore plus à rejeter au fur et à mesure que la valeur de $N$ augmente.
+
+
+**6.** Soit $\lambda'< \lambda_0$, d'après le théorème 5.5.2 du cours, le test que l'on a déterminé précédemment est également U.P.P. pour l'hypothèse $H'_0 = \{\lambda \leq \lambda_0\}$ contre l'alternative $H'_1 = \{\lambda > \lambda_0\}$,au niveau $\alpha$.
+En posant $\mathcal{K}_\alpha := \{\delta : R_0(\lambda,\delta) \leq \alpha,\:\lambda \leq \lambda_0\}$, on a alors que, pour tout $\lambda > \lambda_0$ : $$R(\lambda,\delta^{*}) \leq R(\lambda, \delta) \quad \forall\:\delta \in \mathcal{K}_\alpha $$
+
+Posons $\alpha ' = R(\lambda',\delta^{*})$. 
+
+Comme $$\mathcal{K}_{\alpha'} \subset \mathcal{K}_\alpha $$, on a que, pour tout $\lambda > \lambda_0$ : $$R(\lambda,\delta^{*}) \leq R(\lambda, \delta) \quad \forall\:\delta \in \mathcal{K}_{\alpha'} $$
+
+Il suffit alors de montrer que le résultat suivant que l'on peut supposer par rapport au courbes précédentes :
+
+ $$R(\lambda',\delta^{*}) < R(\lambda_0,\delta^{*}) $$ 
+
+Soit :
+$$g:y \longmapsto R(y,\delta^{*}) $$ où
+
+$$R(y,\delta^{*}) = \mathbb{P}_{y}(T(X) < c_0) = 1- e^{-yc_0} \sum_{i = 0}^{n - 1}\frac{1}{i!} (y c_0)^{i} $$
+
+
+g est dérivable, et :
+$$
+\begin{array}{lcl}
+g'(y) &=& - c_0 e^{-yc_0} (-\sum\limits_{i = 0}^{n - 1}\frac{1}{i!} (y c_0)^{i} + \sum\limits_{i = 0}^{n - 2}\frac{1}{i!} y^{i} c_0^{i}) \\ &=& \frac{1}{(n-1)!} (y c_0)^{n-1} c_0 e^{-yc_0}  > 0
+\end{array}
+$$
+
+
+Ainsi, par croissance stricte de la fonction $g$, $R(\lambda',\delta^{*}) = \alpha'< \alpha$.
+Par définition, $$\delta^{*} \in \mathcal{K}_{\alpha'}$$
+
+
+##### _Conclusion :_  Le test $\delta^{*}$ est donc U.P.P pour $H_0' = \{\lambda = \lambda'\}$ contre l'alternative $H'_1 = \{\lambda > \lambda_0\}$, au niveau $\alpha' < \alpha$.
+
+
+
